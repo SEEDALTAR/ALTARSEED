@@ -30,6 +30,8 @@
       font-size: 16px;
       cursor: pointer;
       margin-top: 20px;
+    }
+    button:hover {
       display: inline-block;
     }
     button:hover, .buy-link:hover {
