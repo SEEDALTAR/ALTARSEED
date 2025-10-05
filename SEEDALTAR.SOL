@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+/// @title SeedAltarUnique - simple ERC20 with owner mint, burn, and rescue functions
+/// @notice Single-file contract for easy verification (no external imports)
+contract SeedAltarUnique {
+    // ERC20 metadata
+    string public name;
+    string public symbol;
+    uint8 public immutable decimals = 18;
+    uint256 public totalSupply;
+
+    // balances & allowances
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    // ownership
+    address public owner;
+
+    // events
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner_, address indexed spender, uint256 value);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    // modifiers
+    modifier onlyOwner() {
+        require(msg.sender == owner, "SeedAltar: caller is not the owner");
+        _;
+    }
+
+    constructor(string memory _name, string memory _symbol, uint256 initialSupply) {
+        name = _name;
+        symbol = _symbol;
+        owner = msg.sender;
+        emit OwnershipTransferred(address(0), owner);
+
+        if (initialSupply > 0) {
+            uint256 mintAmount = initialSupply * (10 ** uint256(decimals));
+            totalSupply = mintAmount;
+            balanceOf[owner] = mintAmount;
+            emit Transfer(address(0), owner, mintAmount);
+        }
+    }
+
+    // --- ERC20 standard functions ---
+
+    function transfer(address to, uint256 value) external returns (bool) {
+        _transfer(msg.sender, to, value);
+        return true;
+    }
+
+    function approve(address spender, uint256 value) external returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) external returns (bool) {
+        require(allowance[from][msg.sender] >= value, "SeedAltar: allowance exceeded");
+        allowance[from][msg.sender] -= value;
+        _transfer(from, to, value);
+        return true;
+    }
+
+    function _transfer(address from, address to, uint256 value) internal {
+        require(to != address(0), "SeedAltar: transfer to zero");
+        require(balanceOf[from] >= value, "SeedAltar: insufficient balance");
+        balanceOf[from] -= value;
+        balanceOf[to] += value;
+        emit Transfer(from, to, value);
+    }
+
+    // --- OWNER CONTROLS ---
+
+    /// @notice mint tokens to `to`. owner only.
+    function mint(address to, uint256 amount) external onlyOwner {
+        require(to != address(0), "SeedAltar: mint to zero");
+        totalSupply += amount;
+        balanceOf[to] += amount;
+        emit Transfer(address(0), to, amount);
+    }
+
+    /// @notice burn tokens from caller
+    function burn(uint256 amount) external {
+        require(balanceOf[msg.sender] >= amount, "SeedAltar: burn amount exceeds balance");
+        balanceOf[msg.sender] -= amount;
+        totalSupply -= amount;
+        emit Transfer(msg.sender, address(0), amount);
+    }
+
+    /// @notice transfer ownership
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "SeedAltar: new owner is zero");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    // --- RESCUE FUNCTIONS (important to recover accidentally sent tokens / ETH) ---
+
+    /// @notice rescue ERC20 tokens accidentally sent to this contract
+    /// @param token Address of the ERC20 token contract
+    /// @param to Destination address to receive rescued tokens
+    /// @param amount Amount of tokens (raw units) to rescue
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwner returns (bool) {
+        require(to != address(0), "SeedAltar: rescue to zero");
+        (bool success, bytes memory data) = token.call(abi.encodeWithSignature("transfer(address,uint256)", to, amount));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "SeedAltar: rescue failed");
+        return true;
+    }
+
+    /// @notice rescue native ETH/BASE accidentally sent to contract
+    function rescueETH(address payable to, uint256 amount) external onlyOwner {
+        require(to != address(0), "SeedAltar: rescue to zero");
+        (bool ok, ) = to.call{value: amount}("");
+        require(ok, "SeedAltar: ETH transfer failed");
+    }
+
+    // accept plain ETH/BASE transfers
+    receive() external payable {}
+}
