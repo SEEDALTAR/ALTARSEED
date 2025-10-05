@@ -21,7 +21,7 @@
       margin: auto;
       box-shadow: 0px 0px 20px #5a2ec9;
     }
-    button {
+    button, .buy-link {
       background: #5a2ec9;
       color: #fff;
       border: none;
@@ -32,6 +32,9 @@
       margin-top: 20px;
     }
     button:hover {
+      display: inline-block;
+    }
+    button:hover, .buy-link:hover {
       background: #7d4fff;
     }
     a {
@@ -49,8 +52,17 @@
         0x1254290214e593a502b97136bc9d100007f1fcdd
       </a>
     </p>
+
+    <!-- Connect Wallet Button -->
     <button onclick="connectWallet()">🔗 Connect Wallet</button>
     <p id="walletAddress"></p>
+
+    <!-- Buy Token Button -->
+    <a class="buy-link" 
+       href="https://rainbow.me/token/base/0x1254290214e593a502b97136bc9d100007f1fcdd" 
+       target="_blank">
+       💸 Buy SEED ALTAR
+    </a>
   </div>
 
   <script>
