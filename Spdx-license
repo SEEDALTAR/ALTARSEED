@@ -1,0 +1,52 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+/*
+  Mintable ERC20 token for "Seed Altar (Living Seed)"
+  Owner (deployer) is able to mint. Uses OpenZeppelin patterns.
+*/
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SeedAltarLiving is ERC20, Ownable {
+    // optional: a flag to disable minting forever
+    bool public mintingFinished = false;
+
+    event Mint(address indexed to, uint256 amount);
+    event MintingFinished();
+
+    constructor(string memory name_, string memory symbol_, uint256 initialMint) ERC20(name_, symbol_) {
+        if (initialMint > 0) {
+            _mint(msg.sender, initialMint);
+            emit Mint(msg.sender, initialMint);
+        }
+    }
+
+    modifier canMint() {
+        require(!mintingFinished, "SeedAltar: minting finished");
+        _;
+    }
+
+    /// @notice owner-only mint
+    function mint(address to, uint256 amount) external onlyOwner canMint {
+        _mint(to, amount);
+        emit Mint(to, amount);
+    }
+
+    /// @notice optionally finish minting forever
+    function finishMinting() external onlyOwner canMint {
+        mintingFinished = true;
+        emit MintingFinished();
+    }
+
+    /// @notice rescue function for accidentally sent ETH
+    function rescueETH(address payable to) external onlyOwner {
+        uint256 bal = address(this).balance;
+        require(bal > 0, "no ETH");
+        to.transfer(bal);
+    }
+
+    // allow contract to receive ETH (if you want to require payment to mint)
+    receive() external payable {}
+}
